@@ -1,4 +1,4 @@
-# Money Transfer CLI Application
+# Phase 1 - Money Transfer CLI Application
 
 This is a Command-Line Interface (CLI) application for performing secure money transfers using the CliQ approach. It allows transfers to Mobile Numbers, Aliases, or IBANs, with validation and account management.
 

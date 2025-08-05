@@ -5,38 +5,8 @@ This is a Command-Line Interface (CLI) application for performing secure money t
 The implementation has been implemented by Visual Code and used maven environment
 
 # Project Structure
-`
-└── climoneytransfer/
-    ├── src/
-    │   ├── main/
-    │   │   └── java/
-    │   │       ├── data/
-    │   │       │   └── AccountCSVReader.java
-    │   │       ├── main/
-    │   │       │   └── Main.java
-    │   │       ├── modal/
-    │   │       │   ├── Account.java
-    │   │       │   └── Transfer.java
-    │   │       ├── service/
-    │   │       │   └── TransferService.java
-    │   │       └── util/
-    │   │           └── Validator.java
-    │   └── accounts.csv
-    ├── target/
-    │   └── classes/
-    │       └── data/
-    │           ├── AccountCSVReader.class
-    │           ├── main/
-    │           │   └── Main.class
-    │           ├── modal/
-    │           │   ├── Account.class
-    │           │   └── Transfer.class
-    │           ├── service/
-    │           │   └── TransferService.class
-    │           └── util/
-    │               └── Validator.class
-    └── pom.xml
-`
+
+<img width="596" height="844" alt="image" src="https://github.com/user-attachments/assets/3268c5fd-c141-4887-aa66-87c2d3e5992d" />
 
 #Run task
 

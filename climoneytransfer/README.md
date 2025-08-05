@@ -5,7 +5,7 @@ This is a Command-Line Interface (CLI) application for performing secure money t
 The implementation has been implemented by Visual Code and used maven environment
 
 # Project Structure
-.
+`
 └── climoneytransfer/
     ├── src/
     │   ├── main/
@@ -36,6 +36,7 @@ The implementation has been implemented by Visual Code and used maven environmen
     │           └── util/
     │               └── Validator.class
     └── pom.xml
+`
 
 #Run task
 

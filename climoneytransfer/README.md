@@ -40,12 +40,32 @@ The implementation has been implemented by Visual Code and used maven environmen
 #Run task
 
 - Main Page
+
 ![alt text](image.png)
 
 - List of Accounts
+
 ![alt text](image-1.png)
 
--List of Transfers
+- List of Transfers
+
+![alt text](image-5.png)
+
+- Transfer Money By :
+
+*IBAN :
+
+![alt text](image-2.png)
+
+*Mobile :
+
+![alt text](image-3.png)
+
+*Alias:
+
+![alt text](image-4.png)
+
+
 
 
 

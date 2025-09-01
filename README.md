@@ -37,10 +37,3 @@ The implementation has been implemented by Visual Code and used maven environmen
 * # Alias:
 
 ![alt text](image-4.png)
-
-
-
-
-
-
->>>>>>> 3b09d77 (phase 1 uploaded)

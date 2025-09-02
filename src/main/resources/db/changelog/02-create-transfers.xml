@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="
+     http://www.liquibase.org/xml/ns/dbchangelog
+     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="2" author="you">
+    <createTable tableName="transfers">
+      <column name="id" type="BIGINT" autoIncrement="true">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+      <column name="from_account" type="VARCHAR(50)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="beneficiary_type" type="VARCHAR(20)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="beneficiary_value" type="VARCHAR(100)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="amount" type="DOUBLE PRECISION">
+        <constraints nullable="false"/>
+      </column>
+      <column name="transfer_date" type="TIMESTAMP">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+  </changeSet>
+
+</databaseChangeLog>

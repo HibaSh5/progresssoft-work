@@ -1,81 +1,95 @@
 package com.cliqtransferapi.service;
 
-import com.cliqtransferapi.model.Account;
-import com.cliqtransferapi.model.Transfer;
-import com.cliqtransferapi.repository.AccountRepository;
-import com.cliqtransferapi.repository.TransferRepository;
-import com.cliqtransferapi.util.Validator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.cliqtransferapi.model.*;
+import com.cliqtransferapi.repository.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
+import java.time.format.DateTimeParseException;
+import java.util.*;
 
 @Service
 public class TransferService {
 
-    private static final Logger logger = LoggerFactory.getLogger(TransferService.class);
+    private final TransferRecordRepository repository;
 
-    private final AccountRepository accountRepository;
-    private final TransferRepository transferRepository;
+    @Value("${transfer.max-future-days:30}")
+    private int maxFutureDays;
 
-    public TransferService(AccountRepository accountRepository, TransferRepository transferRepository) {
-        this.accountRepository = accountRepository;
-        this.transferRepository = transferRepository;
+    public TransferService(TransferRecordRepository repository) {
+        this.repository = repository;
     }
 
-    public List<Account> getAccounts() {
-        return accountRepository.findAll();
-    }
+    public List<Map<String, String>> processFile(MultipartFile file) throws IOException {
+        List<Map<String, String>> results = new ArrayList<>();
 
-    public List<Transfer> getTransfers() {
-        return transferRepository.findAll();
-    }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line;
+            int lineNumber = 0;
 
-    @Transactional
-    public boolean performTransfer(String fromAccount, String beneficiaryID, String beneficiaryValue, double amount) {
-        if (amount < 1 || amount > 5000) {
-            throw new IllegalArgumentException("Amount must be between 1 and 5000 JOD.");
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                if (lineNumber == 1 && line.toLowerCase().contains("debitaccount")) continue;
+
+                String[] columns = line.split(",");
+                if (columns.length != 5) {
+                    results.add(result("INVALID", "Line " + lineNumber + ": Wrong number of columns"));
+                    continue;
+                }
+
+                try {
+                    String debitAccount = columns[0].trim();
+                    String beneficiaryType = columns[1].trim();
+                    String beneficiary = columns[2].trim();
+                    BigDecimal amount = new BigDecimal(columns[3].trim());
+                    LocalDate valueDate = LocalDate.parse(columns[4].trim());
+
+                    LocalDate today = LocalDate.now();
+                    String status;
+                    String message;
+
+                    if (valueDate.isBefore(today)) {
+                        status = "FAILED";
+                        message = "Value date is in the past";
+                    } else if (valueDate.isAfter(today.plusDays(maxFutureDays))) {
+                        status = "FAILED";
+                        message = "Value date exceeds allowed future range";
+                    } else {
+                        status = valueDate.isAfter(today) ? "PENDING" : "COMPLETED";
+                        message = "Transfer processed";
+                    }
+
+                    repository.save(BulkTransfer.builder()
+                            .debitAccount(debitAccount)
+                            .beneficiaryType(beneficiaryType)
+                            .beneficiary(beneficiary)
+                            .amount(amount)
+                            .valueDate(valueDate)
+                            .status(status)
+                            .message(message)
+                            .build());
+
+                    results.add(result(status, "Line " + lineNumber + ": " + message));
+
+                } catch (NumberFormatException | DateTimeParseException e) {
+                    results.add(result("INVALID", "Line " + lineNumber + ": " + e.getMessage()));
+                }
+            }
         }
 
-        Account debit = accountRepository.findById(fromAccount)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found."));
+        return results;
+    }
 
-        if (debit.getBalance() < amount) {
-            throw new IllegalStateException("Insufficient funds.");
-        }
-
-        String beneficiary = switch (beneficiaryID) {
-            case "IBAN" -> {
-                if (!Validator.isValidIban(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid IBAN format.");
-                }
-                yield "IBAN";
-            }
-            case "Mobile" -> {
-                if (!Validator.isValidMobile(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid mobile format.");
-                }
-                yield "Mobile";
-            }
-            case "Alias" -> {
-                if (!Validator.isValidAlias(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid alias format.");
-                }
-                yield "Alias";
-            }
-            default -> throw new IllegalArgumentException("Invalid beneficiary type.");
-        };
-
-        debit.setBalance(debit.getBalance() - amount);
-        accountRepository.save(debit);
-
-        // Save transfer record
-        Transfer transfer = new Transfer(fromAccount, beneficiary, beneficiaryValue, amount, LocalDate.now());
-        transferRepository.save(transfer);
-
-        return true;
+    private Map<String, String> result(String status, String message) {
+        Map<String, String> map = new HashMap<>();
+        map.put("status", status);
+        map.put("message", message);
+        return map;
     }
 }

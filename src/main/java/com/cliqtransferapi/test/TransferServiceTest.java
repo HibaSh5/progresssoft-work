@@ -1,167 +1,69 @@
 package com.cliqtransferapi.test;
 
-import com.cliqtransferapi.model.Account;
-import com.cliqtransferapi.model.Transfer;
-import com.cliqtransferapi.repository.AccountRepository;
-import com.cliqtransferapi.repository.TransferRepository;
+import com.cliqtransferapi.model.BulkTransfer;
+import com.cliqtransferapi.repository.TransferRecordRepository;
 import com.cliqtransferapi.service.TransferService;
-import com.cliqtransferapi.util.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.MockedStatic;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.transaction.annotation.Transactional;
+import org.mockito.*;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
 
-@SpringBootTest
-@ExtendWith(SpringExtension.class)
-@Transactional //no need to do any updates / addition data to the postgres tables
 class TransferServiceTest {
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
-    private AccountRepository accountRepository;
+    @Mock
+    private TransferRecordRepository repository;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
-    private TransferRepository transferRepository;
-
+    @InjectMocks
     private TransferService transferService;
 
     @BeforeEach
     void setUp() {
-        transferService = new TransferService(accountRepository, transferRepository);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    void performTransfer_Success_IBAN() {
-        String fromAccount = "1223123";
-        String beneficiaryID = "IBAN";
-        String beneficiaryValue = "JO94CBJO0010000000000131000302";
-        double amount = 500;
+    void testProcessFile_withValidAndInvalidLines() throws Exception {
+        String content = """
+                debitAccount,beneficiaryType,beneficiary,amount,valueDate
+                123456789,ALIAS,testuser,100.50,%s
+                123456789,ALIAS,testuser,abc,2025-10-10
+                123456789,ALIAS,testuser,100.50,2020-01-01
+                """.formatted(LocalDate.now());
 
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidIban(beneficiaryValue)).thenReturn(true);
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "test.csv", "text/csv", content.getBytes()
+        );
 
-            transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        List<Map<String, String>> results = transferService.processFile(file);
 
-            Account updatedAccount = accountRepository.findById(fromAccount).orElseThrow();
+        assertEquals(3, results.size());
 
-            Transfer t = transferRepository.findAll().get(transferRepository.findAll().size() - 1);
+        assertTrue(results.get(0).get("status").equalsIgnoreCase("COMPLETED") ||
+                results.get(0).get("status").equalsIgnoreCase("PENDING"));
+        assertEquals("INVALID", results.get(1).get("status"));
+        assertEquals("FAILED", results.get(2).get("status"));
 
-        }
+        verify(repository, times(2)).save(any(BulkTransfer.class));
     }
 
     @Test
-    void performTransfer_Success_Mobile() {
-        String fromAccount = "1202091";
-        String beneficiaryID = "Mobile";
-        String beneficiaryValue = "00962791234567";
-        double amount = 200;
+    void testProcessFile_emptyFile() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "empty.csv", "text/csv", new byte[0]
+        );
 
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidMobile(beneficiaryValue)).thenReturn(true);
+        List<Map<String, String>> results = transferService.processFile(file);
 
-            Account accountBefore = accountRepository.findById(fromAccount).orElseThrow();
-            double initialBalance = accountBefore.getBalance();
-
-            transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
-
-            Account accountAfter = accountRepository.findById(fromAccount).orElseThrow();
-            assertEquals(initialBalance - amount, accountAfter.getBalance(), 0.01);
-
-            Transfer t = transferRepository.findAll().get(transferRepository.findAll().size() - 1);
-            assertEquals("Mobile", t.getBeneficiary());
-            assertEquals(amount, t.getAmount());
-        }
-    }
-
-    @Test
-    void performTransfer_Success_Alias() {
-        String fromAccount = "7272819";
-        String beneficiaryID = "Alias";
-        String beneficiaryValue = "hiba15";
-        double amount = 100;
-
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidAlias(beneficiaryValue)).thenReturn(true);
-
-            Account accountBefore = accountRepository.findById(fromAccount).orElseThrow();
-            double initialBalance = accountBefore.getBalance();
-
-            transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
-
-            Account accountAfter = accountRepository.findById(fromAccount).orElseThrow();
-            assertEquals(initialBalance - amount, accountAfter.getBalance(), 0.01);
-
-            Transfer t = transferRepository.findAll().get(transferRepository.findAll().size() - 1);
-            assertEquals("Alias", t.getBeneficiary());
-            assertEquals(amount, t.getAmount());
-        }
-    }
-
-    @Test
-    void performTransfer_InvalidAmount() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("1202091", "IBAN", "JO94CBJO0010000000000131000302", 0);
-        });
-
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("1223123", "IBAN", "JO94CBJO0010000000000131000302", 6000);
-        });
-    }
-
-    @Test
-    void performTransfer_AccountNotFound() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("nonexistent", "IBAN", "JO94CBJO0010000000000131000302", 100);
-        });
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_IBAN() {
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidIban("BAD_IBAN")).thenReturn(false);
-
-            assertThrows(IllegalArgumentException.class, () -> {
-                transferService.performTransfer("7272819", "IBAN", "BAD_IBAN", 100);
-            });
-        }
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_Mobile() {
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidMobile("1234")).thenReturn(false);
-
-            assertThrows(IllegalArgumentException.class, () -> {
-                transferService.performTransfer("1223123", "Mobile", "1234", 100);
-            });
-        }
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_Alias() {
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidAlias("!!!")).thenReturn(false);
-
-            assertThrows(IllegalArgumentException.class, () -> {
-                transferService.performTransfer("1202091", "Alias", "!!!", 100);
-            });
-        }
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiaryType() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("1223123", "9", "something", 100);
-        });
+        assertTrue(results.isEmpty());
+        verifyNoInteractions(repository);
     }
 }

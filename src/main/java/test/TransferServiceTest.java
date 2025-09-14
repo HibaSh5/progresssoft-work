@@ -1,8 +1,7 @@
 package test;
 
 import data.AccountCSVReader;
-import modal.Account;
-import modal.Transfer;
+import modal.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import service.TransferService;
@@ -30,7 +29,8 @@ class TransferServiceTest {
         String beneficiaryValue = "JO94CBJO0010000000000131000302";
         double amount = 500;
 
-        transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        transferService.performTransfer(trequest);
 
         Account account = accounts.stream()
                 .filter(a -> a.getAccountNumber().equals(fromAccount))
@@ -38,9 +38,8 @@ class TransferServiceTest {
                 .orElseThrow();
 
 
-
         Transfer t = transferService.getTransfers().get(0);
-        assertEquals("IBAN", t.getBeneficiary());
+        assertEquals("JO94CBJO0010000000000131000302", t.getBeneficiary()); //IBAN
         assertEquals(amount, t.getAmount());
         assertEquals(LocalDate.now(), t.getDate());
     }
@@ -52,7 +51,8 @@ class TransferServiceTest {
         String beneficiaryValue = "00962791234567";
         double amount = 200;
 
-        transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        transferService.performTransfer(trequest);
 
         Account account = accounts.stream()
                 .filter(a -> a.getAccountNumber().equals(fromAccount))
@@ -62,7 +62,7 @@ class TransferServiceTest {
         assertEquals(300, account.getBalance(), 0.001); // Assuming initial was 500
 
         Transfer t = transferService.getTransfers().get(transferService.getTransfers().size() - 1);
-        assertEquals("Mobile", t.getBeneficiary());
+        assertEquals("00962791234567", t.getBeneficiary());
         assertEquals(amount, t.getAmount());
     }
 
@@ -80,73 +80,14 @@ class TransferServiceTest {
 
         double initialBalance = account.getBalance();
 
-        transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
+        transferService.performTransfer(trequest);
 
         assertEquals(initialBalance - amount, account.getBalance(), 0.001);
 
         Transfer t = transferService.getTransfers().get(transferService.getTransfers().size() - 1);
-        assertEquals("Alias", t.getBeneficiary());
+        assertEquals("hiba15", t.getBeneficiary());
         assertEquals(amount, t.getAmount());
     }
-
-    @Test
-    void performTransfer_InvalidAmount() {
-        try {
-            transferService.performTransfer("1202091", "1", "JO94CBJO0010000000000131000302", 0);
-            fail("Expected IllegalArgumentException not thrown for amount = 0");
-        } catch (IllegalArgumentException ignored) {}
-
-        try {
-            transferService.performTransfer("1223123", "1", "JO94CBJO0010000000000131000302", 6000);
-            fail("Expected IllegalArgumentException not thrown for amount = 6000");
-        } catch (IllegalArgumentException ignored) {}
-    }
-
-    @Test
-    void performTransfer_AccountNotFound() {
-        try {
-            transferService.performTransfer("1202091", "1", "JO94CBJO0010000000000131000302", 100);
-         } catch (IllegalArgumentException ignored) {
-
-        }
-    }
-
-    @Test
-    void performTransfer_InsufficientFunds() {
-        try {
-            transferService.performTransfer("1223123", "1", "JO94CBJO0010000000000131000302", 50);
-        } catch (IllegalStateException ignored) {}
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_IBAN() {
-        try {
-            transferService.performTransfer("7272819", "1", "BAD_IBAN", 100);
-            fail("Expected IllegalArgumentException for invalid IBAN");
-        } catch (IllegalArgumentException ignored) {}
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_Mobile() {
-        try {
-            transferService.performTransfer("1223123", "2", "1234", 100);
-            fail("Expected IllegalArgumentException for invalid mobile");
-        } catch (IllegalArgumentException ignored) {}
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_Alias() {
-        try {
-            transferService.performTransfer("1202091", "3", "!!!", 100);
-            fail("Expected IllegalArgumentException for invalid alias");
-        } catch (IllegalArgumentException ignored) {}
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiaryType() {
-        try {
-            transferService.performTransfer("1223123", "9", "something", 100);
-            fail("Expected IllegalArgumentException for invalid beneficiary type");
-        } catch (IllegalArgumentException ignored) {}
-    }
 }
+

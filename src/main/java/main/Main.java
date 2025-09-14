@@ -51,7 +51,8 @@ public class Main {
                     double amount = Double.parseDouble(scanner.nextLine());
 
                     try {
-                        service.performTransfer(acc, beneficiaryid, beneficiaryValue, amount);
+                        TransferRequest request = new TransferRequest(acc, beneficiaryid, beneficiaryValue, amount);
+                        service.performTransfer(request);
                         System.out.println("Transfer successful.");
                     } catch (Exception e) {
                         System.out.println("Transfer failed: " + e.getMessage());

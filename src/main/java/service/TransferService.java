@@ -3,7 +3,6 @@ package service;
 import java.time.LocalDate;
 import java.util.*;
 import modal.*;
-import util.*;
 
 public class TransferService {
     private final List<Account> accounts;
@@ -23,7 +22,12 @@ public class TransferService {
         return transfers;
     }
 
-    public void performTransfer(String fromAccount, String beneficiaryID, String beneficiaryValue, double amount) {
+    public void performTransfer(TransferRequest request) {
+        String fromAccount = request.fromAccount();
+        String beneficiaryID = request.beneficiaryID();
+        String beneficiaryValue = request.beneficiaryValue();
+        double amount = request.amount();
+
         if (amount < 1 || amount > 5000) {
             throw new IllegalArgumentException("Amount must be between 1 and 5000 JOD.");
         }
@@ -37,29 +41,19 @@ public class TransferService {
             throw new IllegalStateException("Insufficient funds.");
         }
 
-        String beneficiary = switch (beneficiaryID) {
-            case "1" -> {
-                if (!Validator.isValidIban(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid IBAN format.");
-                }
-                yield "IBAN";
-            }
-            case "2" -> {
-                if (!Validator.isValidMobile(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid mobile format.");
-                }
-                yield "Mobile";
-            }
-            case "3" -> {
-                if (!Validator.isValidAlias(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid alias format.");
-                }
-                yield "Alias";
-            }
+        AccountType accountType = switch (beneficiaryID) {
+            case "1" -> AccountType.IBAN;
+            case "2" -> AccountType.Mobile;
+            case "3" -> AccountType.Alias;
             default -> throw new IllegalArgumentException("Invalid beneficiary type.");
         };
 
+        if (!accountType.validate(beneficiaryValue)) {
+            throw new IllegalArgumentException("Invalid beneficiary account value for type: " + accountType);
+        }
+
         debit.setBalance(debit.getBalance() - amount);
-        transfers.add(new Transfer(fromAccount, beneficiary, amount, LocalDate.now()));
+
+        transfers.add(new Transfer(fromAccount, beneficiaryValue, amount, LocalDate.now()));
     }
 }

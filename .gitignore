@@ -1,2 +1,10 @@
-target/
-src/main/
+# Ignore everything inside target/
+target/*
+# But allow .gitkeep file
+!target/.gitkeep
+
+# Ignore everything inside src/
+src/*
+# But allow src/main/ and files inside it
+!src/main/
+!src/main/**/.gitkeep

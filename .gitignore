@@ -6,5 +6,5 @@ target/*
 # Ignore everything inside src/
 src/*
 # But allow src/main/ and files inside it
-!src/main/.gitkeep
-!src/main/**/.gitkeep
+!src/main/
+!src/main/**/*.gitkeep

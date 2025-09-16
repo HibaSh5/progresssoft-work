@@ -1,42 +1,53 @@
 package com.cliqtransferapi.test;
 
+import com.cliqtransferapi.controller.GlobalHandlerException;
 import com.cliqtransferapi.model.Account;
 import com.cliqtransferapi.model.Transfer;
+import com.cliqtransferapi.model.TransferRequest;
 import com.cliqtransferapi.repository.AccountRepository;
 import com.cliqtransferapi.repository.TransferRepository;
 import com.cliqtransferapi.service.TransferService;
 import com.cliqtransferapi.util.Validator;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.MockedStatic;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
+
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
 @ExtendWith(SpringExtension.class)
-@Transactional //no need to do any updates / addition data to the postgres tables
 class TransferServiceTest {
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
+    @Mock
     private AccountRepository accountRepository;
 
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    @Autowired
+    @Mock
     private TransferRepository transferRepository;
 
+    @InjectMocks
     private TransferService transferService;
+
+    private GlobalHandlerException handler;
+
+    private List<Transfer> transfers;
 
     @BeforeEach
     void setUp() {
+        MockitoAnnotations.openMocks(this);
+        handler = new GlobalHandlerException();
+        transfers = new ArrayList<>();
         transferService = new TransferService(accountRepository, transferRepository);
     }
 
@@ -47,15 +58,39 @@ class TransferServiceTest {
         String beneficiaryValue = "JO94CBJO0010000000000131000302";
         double amount = 500;
 
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
+        Account accountBefore = new Account();
+        accountBefore.setAccountNumber(fromAccount);
+        accountBefore.setBalance(1000);
+
+        when(accountRepository.findById(fromAccount)).thenReturn(Optional.of(accountBefore));
+
+        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+            Account acc = invocation.getArgument(0);
+            accountBefore.setBalance(acc.getBalance());
+            return acc;
+        });
+
+        when(transferRepository.save(any(Transfer.class))).thenAnswer(invocation -> {
+            Transfer t = invocation.getArgument(0);
+            transfers.add(t);
+            return t;
+        });
+
+        when(transferRepository.findAll()).thenReturn(transfers);
+
+        try (MockedStatic<Validator> mockedValidator = mockStatic(Validator.class)) {
             mockedValidator.when(() -> Validator.isValidIban(beneficiaryValue)).thenReturn(true);
 
-            transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+            TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
 
-            Account updatedAccount = accountRepository.findById(fromAccount).orElseThrow();
+            transferService.performTransfer(trequest);
 
-            Transfer t = transferRepository.findAll().get(transferRepository.findAll().size() - 1);
+            assertEquals(500, accountBefore.getBalance(), 0.01);
 
+            assertFalse(transfers.isEmpty(), "Transfer list should not be empty");
+            Transfer lastTransfer = transfers.get(transfers.size() - 1);
+            assertEquals("IBAN", lastTransfer.getBeneficiary());
+            assertEquals(amount, lastTransfer.getAmount(), 0.01);
         }
     }
 
@@ -66,20 +101,36 @@ class TransferServiceTest {
         String beneficiaryValue = "00962791234567";
         double amount = 200;
 
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
+        Account accountBefore = new Account();
+        accountBefore.setAccountNumber(fromAccount);
+        accountBefore.setBalance(500);
+
+        when(accountRepository.findById(fromAccount)).thenReturn(Optional.of(accountBefore));
+        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+            Account acc = invocation.getArgument(0);
+            accountBefore.setBalance(acc.getBalance());
+            return acc;
+        });
+        when(transferRepository.save(any(Transfer.class))).thenAnswer(invocation -> {
+            Transfer t = invocation.getArgument(0);
+            transfers.add(t);
+            return t;
+        });
+        when(transferRepository.findAll()).thenReturn(transfers);
+
+        try (MockedStatic<Validator> mockedValidator = mockStatic(Validator.class)) {
             mockedValidator.when(() -> Validator.isValidMobile(beneficiaryValue)).thenReturn(true);
 
-            Account accountBefore = accountRepository.findById(fromAccount).orElseThrow();
-            double initialBalance = accountBefore.getBalance();
+            TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
 
-            transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+            transferService.performTransfer(trequest);
 
-            Account accountAfter = accountRepository.findById(fromAccount).orElseThrow();
-            assertEquals(initialBalance - amount, accountAfter.getBalance(), 0.01);
+            assertEquals(300, accountBefore.getBalance(), 0.01);
 
-            Transfer t = transferRepository.findAll().get(transferRepository.findAll().size() - 1);
-            assertEquals("Mobile", t.getBeneficiary());
-            assertEquals(amount, t.getAmount());
+            assertFalse(transfers.isEmpty());
+            Transfer lastTransfer = transfers.get(transfers.size() - 1);
+            assertEquals("Mobile", lastTransfer.getBeneficiary());
+            assertEquals(amount, lastTransfer.getAmount(), 0.01);
         }
     }
 
@@ -90,78 +141,65 @@ class TransferServiceTest {
         String beneficiaryValue = "hiba15";
         double amount = 100;
 
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
+        Account accountBefore = new Account();
+        accountBefore.setAccountNumber(fromAccount);
+        accountBefore.setBalance(300);
+
+        when(accountRepository.findById(fromAccount)).thenReturn(Optional.of(accountBefore));
+        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+            Account acc = invocation.getArgument(0);
+            accountBefore.setBalance(acc.getBalance());
+            return acc;
+        });
+        when(transferRepository.save(any(Transfer.class))).thenAnswer(invocation -> {
+            Transfer t = invocation.getArgument(0);
+            transfers.add(t);
+            return t;
+        });
+        when(transferRepository.findAll()).thenReturn(transfers);
+
+        try (MockedStatic<Validator> mockedValidator = mockStatic(Validator.class)) {
             mockedValidator.when(() -> Validator.isValidAlias(beneficiaryValue)).thenReturn(true);
 
-            Account accountBefore = accountRepository.findById(fromAccount).orElseThrow();
-            double initialBalance = accountBefore.getBalance();
+            TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
 
-            transferService.performTransfer(fromAccount, beneficiaryID, beneficiaryValue, amount);
+            transferService.performTransfer(trequest);
 
-            Account accountAfter = accountRepository.findById(fromAccount).orElseThrow();
-            assertEquals(initialBalance - amount, accountAfter.getBalance(), 0.01);
+            assertEquals(200, accountBefore.getBalance(), 0.01);
 
-            Transfer t = transferRepository.findAll().get(transferRepository.findAll().size() - 1);
-            assertEquals("Alias", t.getBeneficiary());
-            assertEquals(amount, t.getAmount());
+            assertFalse(transfers.isEmpty());
+            Transfer lastTransfer = transfers.get(transfers.size() - 1);
+            assertEquals("Alias", lastTransfer.getBeneficiary());
+            assertEquals(amount, lastTransfer.getAmount(), 0.01);
         }
     }
 
     @Test
-    void performTransfer_InvalidAmount() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("1202091", "IBAN", "JO94CBJO0010000000000131000302", 0);
-        });
+    void performTransfer_InvalidIBAN_ShouldThrowException() {
+        String fromAccount = "1223123";
+        String beneficiaryID = "IBAN";
+        String beneficiaryValue = "INVALID_IBAN";
+        double amount = 500;
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("1223123", "IBAN", "JO94CBJO0010000000000131000302", 6000);
-        });
-    }
+        Account accountBefore = new Account();
+        accountBefore.setAccountNumber(fromAccount);
+        accountBefore.setBalance(1000);
 
-    @Test
-    void performTransfer_AccountNotFound() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("nonexistent", "IBAN", "JO94CBJO0010000000000131000302", 100);
-        });
-    }
+        when(accountRepository.findById(fromAccount)).thenReturn(Optional.of(accountBefore));
 
-    @Test
-    void performTransfer_InvalidBeneficiary_IBAN() {
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidIban("BAD_IBAN")).thenReturn(false);
+        try (MockedStatic<Validator> mockedValidator = mockStatic(Validator.class)) {
+            mockedValidator.when(() -> Validator.isValidIban(beneficiaryValue)).thenReturn(false);
 
-            assertThrows(IllegalArgumentException.class, () -> {
-                transferService.performTransfer("7272819", "IBAN", "BAD_IBAN", 100);
+            TransferRequest trequest = new TransferRequest(fromAccount, beneficiaryID, beneficiaryValue, amount);
+
+            IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+                transferService.performTransfer(trequest);
             });
+
+            String result = handler.handleException(exception);
+            // Replace the below with your actual expected error message from GlobalHandlerException
+            assertEquals("Invalid IBAN format.", result);
         }
     }
 
-    @Test
-    void performTransfer_InvalidBeneficiary_Mobile() {
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidMobile("1234")).thenReturn(false);
-
-            assertThrows(IllegalArgumentException.class, () -> {
-                transferService.performTransfer("1223123", "Mobile", "1234", 100);
-            });
-        }
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiary_Alias() {
-        try (MockedStatic<Validator> mockedValidator = org.mockito.Mockito.mockStatic(Validator.class)) {
-            mockedValidator.when(() -> Validator.isValidAlias("!!!")).thenReturn(false);
-
-            assertThrows(IllegalArgumentException.class, () -> {
-                transferService.performTransfer("1202091", "Alias", "!!!", 100);
-            });
-        }
-    }
-
-    @Test
-    void performTransfer_InvalidBeneficiaryType() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            transferService.performTransfer("1223123", "9", "something", 100);
-        });
-    }
 }

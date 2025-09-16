@@ -2,9 +2,9 @@ package com.cliqtransferapi.service;
 
 import com.cliqtransferapi.model.Account;
 import com.cliqtransferapi.model.Transfer;
+import com.cliqtransferapi.model.TransferRequest;
 import com.cliqtransferapi.repository.AccountRepository;
 import com.cliqtransferapi.repository.TransferRepository;
-import com.cliqtransferapi.util.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,12 @@ public class TransferService {
     }
 
     @Transactional
-    public boolean performTransfer(String fromAccount, String beneficiaryID, String beneficiaryValue, double amount) {
+    public void performTransfer(TransferRequest request) {
+        String fromAccount = request.fromAccount();
+        String beneficiaryID = request.beneficiaryID();
+        String beneficiaryValue = request.beneficiaryValue();
+        double amount = request.amount();
+
         if (amount < 1 || amount > 5000) {
             throw new IllegalArgumentException("Amount must be between 1 and 5000 JOD.");
         }
@@ -47,35 +52,16 @@ public class TransferService {
             throw new IllegalStateException("Insufficient funds.");
         }
 
-        String beneficiary = switch (beneficiaryID) {
-            case "IBAN" -> {
-                if (!Validator.isValidIban(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid IBAN format.");
-                }
-                yield "IBAN";
-            }
-            case "Mobile" -> {
-                if (!Validator.isValidMobile(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid mobile format.");
-                }
-                yield "Mobile";
-            }
-            case "Alias" -> {
-                if (!Validator.isValidAlias(beneficiaryValue)) {
-                    throw new IllegalArgumentException("Invalid alias format.");
-                }
-                yield "Alias";
-            }
-            default -> throw new IllegalArgumentException("Invalid beneficiary type.");
-        };
+        if (!AccountType.parse(beneficiaryID).validate(beneficiaryValue)) {
+            throw new IllegalArgumentException("Invalid beneficiary account value for type: " + AccountType.parse(beneficiaryID));
+        }
 
         debit.setBalance(debit.getBalance() - amount);
         accountRepository.save(debit);
 
         // Save transfer record
-        Transfer transfer = new Transfer(fromAccount, beneficiary, beneficiaryValue, amount, LocalDate.now());
+        Transfer transfer = new Transfer(fromAccount, beneficiaryID, beneficiaryValue, amount, LocalDate.now());
         transferRepository.save(transfer);
 
-        return true;
     }
 }

@@ -52,8 +52,17 @@
 			"request": {
 				"method": "POST",
 				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"fromAccount\": \"1223123\",\r\n  \"beneficiaryID\": \"Mobile\",\r\n  \"beneficiaryValue\": \"00962799307790\",\r\n  \"amount\": 100.0\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
 				"url": {
-					"raw": "http://localhost:8080/api/transfers/cliq?fromAccount=1223123&beneficiaryID=IBAN&beneficiaryValue=JO94CBJO0010000000000131000302&amount=500.0",
+					"raw": "http://localhost:8080/api/transfers/cliq",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -63,24 +72,6 @@
 						"api",
 						"transfers",
 						"cliq"
-					],
-					"query": [
-						{
-							"key": "fromAccount",
-							"value": "1223123"
-						},
-						{
-							"key": "beneficiaryID",
-							"value": "IBAN"
-						},
-						{
-							"key": "beneficiaryValue",
-							"value": "JO94CBJO0010000000000131000302"
-						},
-						{
-							"key": "amount",
-							"value": "500.0"
-						}
 					]
 				}
 			},

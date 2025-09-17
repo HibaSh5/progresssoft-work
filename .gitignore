@@ -3,9 +3,8 @@ target/*
 # But allow .gitkeep file
 !target/.gitkeep
 
-# Ignore everything inside src
-/src/*
-
-# But allow src/main and its contents
-!/src/main/
-!/src/main/**
+# Ignore everything inside src/
+src/*
+# But allow src/main/ and files inside it
+!src/main/
+!src/main/**/.gitkeep

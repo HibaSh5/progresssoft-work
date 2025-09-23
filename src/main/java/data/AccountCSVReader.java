@@ -1,6 +1,6 @@
 package data;
 
-import modal.*;
+import model.*;
 
 import java.io.*;
 import java.util.*;

@@ -2,7 +2,7 @@ package service;
 
 import java.time.LocalDate;
 import java.util.*;
-import modal.*;
+import model.*;
 
 public class TransferService {
     private final List<Account> accounts;
@@ -41,16 +41,7 @@ public class TransferService {
             throw new IllegalStateException("Insufficient funds.");
         }
 
-        AccountType accountType = switch (beneficiaryID) {
-            case "1" -> AccountType.IBAN;
-            case "2" -> AccountType.Mobile;
-            case "3" -> AccountType.Alias;
-            default -> throw new IllegalArgumentException("Invalid beneficiary type.");
-        };
-
-        if (!accountType.validate(beneficiaryValue)) {
-            throw new IllegalArgumentException("Invalid beneficiary account value for type: " + accountType);
-        }
+        AccountType.parse(beneficiaryID).validate(beneficiaryValue);
 
         debit.setBalance(debit.getBalance() - amount);
 

@@ -1,8 +1,8 @@
 package main;
 
 import data.AccountCSVReader;
-import modal.*;
-import service.*;
+import model.*;
+import service.TransferService;
 
 import java.util.List;
 import java.util.Scanner;

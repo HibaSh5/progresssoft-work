@@ -1,4 +1,4 @@
-package modal;
+package model;
 
 public record TransferRequest(
         String fromAccount,

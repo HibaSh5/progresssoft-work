@@ -1,6 +1,7 @@
 package com.cliqtransferapi.service;
 
 import com.cliqtransferapi.model.Account;
+import com.cliqtransferapi.model.AccountType;
 import com.cliqtransferapi.model.Transfer;
 import com.cliqtransferapi.model.TransferRequest;
 import com.cliqtransferapi.repository.AccountRepository;
@@ -52,9 +53,7 @@ public class TransferService {
             throw new IllegalStateException("Insufficient funds.");
         }
 
-        if (!AccountType.parse(beneficiaryID).validate(beneficiaryValue)) {
-            throw new IllegalArgumentException("Invalid beneficiary account value for type: " + AccountType.parse(beneficiaryID));
-        }
+        AccountType.parse(beneficiaryID).validate(beneficiaryValue);
 
         debit.setBalance(debit.getBalance() - amount);
         accountRepository.save(debit);

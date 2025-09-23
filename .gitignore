@@ -1,5 +1,5 @@
 # Ignore everything inside target/
-target/*
+target
 # But allow .gitkeep file
 !target/.gitkeep
 

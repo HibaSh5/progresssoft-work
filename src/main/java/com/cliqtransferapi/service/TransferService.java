@@ -6,8 +6,6 @@ import com.cliqtransferapi.model.Transfer;
 import com.cliqtransferapi.model.TransferRequest;
 import com.cliqtransferapi.repository.AccountRepository;
 import com.cliqtransferapi.repository.TransferRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,8 +14,6 @@ import java.util.List;
 
 @Service
 public class TransferService {
-
-    private static final Logger logger = LoggerFactory.getLogger(TransferService.class);
 
     private final AccountRepository accountRepository;
     private final TransferRepository transferRepository;

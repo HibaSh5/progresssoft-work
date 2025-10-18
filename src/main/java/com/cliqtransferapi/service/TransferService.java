@@ -1,7 +1,7 @@
 package com.cliqtransferapi.service;
 
-import com.cliqtransferapi.model.*;
-import com.cliqtransferapi.repository.*;
+import com.cliqtransferapi.model.BulkTransfer;
+import com.cliqtransferapi.repository.TransferRecordRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,45 +35,23 @@ public class TransferService {
 
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
-                if (lineNumber == 1 && line.toLowerCase().contains("debitaccount")) continue;
 
-                String[] columns = line.split(",");
-                if (columns.length != 5) {
-                    results.add(result("INVALID", "Line " + lineNumber + ": Wrong number of columns"));
+                if (isHeader(line, lineNumber)) continue;
+
+                String[] fields = line.split(",");
+                if (fields.length != 5) {
+                    results.add(result("INVALID", "Line " + lineNumber + ": Incorrect number of columns"));
                     continue;
                 }
 
                 try {
-                    String debitAccount = columns[0].trim();
-                    String beneficiaryType = columns[1].trim();
-                    String beneficiary = columns[2].trim();
-                    BigDecimal amount = new BigDecimal(columns[3].trim());
-                    LocalDate valueDate = LocalDate.parse(columns[4].trim());
+                    BulkTransfer transfer = parseLine(fields);
+                    String status = determineStatus(transfer.getValueDate());
+                    String message = statusMessage(status);
 
-                    LocalDate today = LocalDate.now();
-                    String status;
-                    String message;
-
-                    if (valueDate.isBefore(today)) {
-                        status = "FAILED";
-                        message = "Value date is in the past";
-                    } else if (valueDate.isAfter(today.plusDays(maxFutureDays))) {
-                        status = "FAILED";
-                        message = "Value date exceeds allowed future range";
-                    } else {
-                        status = valueDate.isAfter(today) ? "PENDING" : "COMPLETED";
-                        message = "Transfer processed";
-                    }
-
-                    repository.save(BulkTransfer.builder()
-                            .debitAccount(debitAccount)
-                            .beneficiaryType(beneficiaryType)
-                            .beneficiary(beneficiary)
-                            .amount(amount)
-                            .valueDate(valueDate)
-                            .status(status)
-                            .message(message)
-                            .build());
+                    transfer.setStatus(status);
+                    transfer.setMessage(message);
+                    repository.save(transfer);
 
                     results.add(result(status, "Line " + lineNumber + ": " + message));
 
@@ -84,6 +62,37 @@ public class TransferService {
         }
 
         return results;
+    }
+
+    private boolean isHeader(String line, int lineNumber) {
+        return lineNumber == 1 && line.toLowerCase().contains("debitaccount");
+    }
+
+    private BulkTransfer parseLine(String[] fields) {
+        return BulkTransfer.builder()
+                .debitAccount(fields[0].trim())
+                .beneficiaryType(fields[1].trim())
+                .beneficiary(fields[2].trim())
+                .amount(new BigDecimal(fields[3].trim()))
+                .valueDate(LocalDate.parse(fields[4].trim()))
+                .build();
+    }
+
+    private String determineStatus(LocalDate valueDate) {
+        LocalDate today = LocalDate.now();
+
+        if (valueDate.isBefore(today)) return "FAILED";
+        if (valueDate.isAfter(today.plusDays(maxFutureDays))) return "FAILED";
+        return valueDate.isAfter(today) ? "PENDING" : "COMPLETED";
+    }
+
+    private String statusMessage(String status) {
+        return switch (status) {
+            case "FAILED" -> "Value date is invalid";
+            case "PENDING" -> "Transfer scheduled";
+            case "COMPLETED" -> "Transfer processed";
+            default -> "Unknown status";
+        };
     }
 
     private Map<String, String> result(String status, String message) {

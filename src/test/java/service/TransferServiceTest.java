@@ -62,7 +62,7 @@ class TransferServiceTest {
 
     // --------- Mobile ---------
     @Test
-    void performTransfer_Mobile_successful() {
+    void validMobileTransfer() {
         Account account = new Account("ACC2", 1500);
         TransferRequest request = new TransferRequest(
                 "ACC2",
@@ -96,7 +96,7 @@ class TransferServiceTest {
 
     // --------- Alias ---------
     @Test
-    void performTransfer_Alias_successful() {
+    void validAliasTransfer() {
         Account account = new Account("ACC3", 1000);
         TransferRequest request = new TransferRequest(
                 "ACC3",

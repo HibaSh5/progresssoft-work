@@ -3,7 +3,6 @@ target/*
 # But allow .gitkeep file
 !target/.gitkeep
 
-
 # But allow src/main/ and files inside it
 !src/main/
 !src/main/**/.gitkeep

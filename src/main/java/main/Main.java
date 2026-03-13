@@ -10,7 +10,7 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args) {
 
-        List<Account> accounts = AccountCSVReader.loadAccounts("src\\accounts.csv");
+        List<Account> accounts = AccountCSVReader.loadAccounts("src/accounts.csv");
         TransferService service = new TransferService(accounts);
 
         Scanner scanner = new Scanner(System.in); // dataentry

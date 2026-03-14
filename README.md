@@ -5,8 +5,6 @@ The service is containerized using **Docker**.
 
 ---
 
----
-
 # Running the Project
 
 ## 1. Start PostgreSQL using Docker
